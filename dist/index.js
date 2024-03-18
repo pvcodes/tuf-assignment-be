@@ -41,11 +41,14 @@ const db_1 = require("./config/db");
 const schema_1 = require("./utils/schema");
 const helper_1 = require("./utils/helper");
 const app = (0, express_1.default)();
+// import * as cors from "cors";
+const cors_1 = __importDefault(require("cors"));
 dotenv.config();
 // Middleware for parsing request bodies
 app.use(express_1.default.json());
+app.use((0, cors_1.default)());
 app.get("/health-check", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    res.status(200).json({ success: true, data: { running: 'ok ' } });
+    res.status(200).json({ success: true, data: { running: "ok " } });
 }));
 app.post("/submit", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const payload = req === null || req === void 0 ? void 0 : req.body; // { username, lang, sourceCode, stdInput }
@@ -53,13 +56,17 @@ app.post("/submit", (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         const as = yield schema_1.codeSubmissionSchema.validateAsync(payload);
     }
     catch (err) {
-        console.log(123, 'validaiton err');
+        console.log(123, "validaiton err");
         return res.status(400).json({ success: false, error: err.message });
     }
     try {
-        const response = yield db_1.prisma.codeSubmission.create({ data: Object.assign(Object.assign({}, payload), { id: (0, helper_1.generateIdentifer)() }) });
+        const response = yield db_1.prisma.codeSubmission.create({
+            data: Object.assign(Object.assign({}, payload), { id: (0, helper_1.generateIdentifer)() }),
+        });
         if (response) {
-            return res.status(200).json({ success: true, data: { submissionId: response.id } });
+            return res
+                .status(200)
+                .json({ success: true, data: { submissionId: response.id } });
         }
     }
     catch (err) {
