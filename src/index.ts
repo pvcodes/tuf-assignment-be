@@ -63,7 +63,7 @@ app.post("/run/:code_id", async (req, res) => {
 	const { code_id } = req?.params;
 	if (!code_id) {
 		return res
-			.json(400)
+			.status(400)
 			.json({ success: false, error: "code_id not valid" });
 	}
 
@@ -74,53 +74,62 @@ app.post("/run/:code_id", async (req, res) => {
 			},
 		});
 
-		console.log(1, { submission });
+		if (!submission) {
+			return res
+				.status(404)
+				.json({ success: false, error: "Submission not found" });
+		}
 
 		const response = await axios.post(
 			`${process.env.ONLINE_JUDGE_URL}/submissions`,
 			{
-				source_code: submission?.sourceCode,
-				language_id: submission?.language_id,
-				stdin: submission?.stdInput || "",
+				source_code: submission.sourceCode,
+				language_id: submission.language_id, // Ensure this line correctly references language_id
+				stdin: submission.stdInput || "",
 			},
 			{
 				headers: ONLINE_JUDGE_HEADERS,
 			}
 		);
 
-		if (response) {
-			const submissionToken = response.data.token;
-			console.log(1, { submissionToken });
-			const updateSubmission = await prisma.codeSubmission.updateMany({
-				where: {
-					id: code_id,
-				},
+		if (!response.data.token) {
+			return res.status(500).json({
+				success: false,
+				error: "Online judge service is unavailable",
+			});
+		}
+
+		const submissionToken = response.data.token;
+		const updateSubmission = await prisma.codeSubmission.updateMany({
+			where: {
+				id: code_id,
+			},
+			data: {
+				submission_id: submissionToken,
+			},
+		});
+
+		if (updateSubmission) {
+			return res.status(200).json({
+				success: true,
 				data: {
-					submission_id: submissionToken,
+					message: "Code running by Online Judge, Check Status",
 				},
 			});
-
-			if (updateSubmission) {
-				return res.status(200).json({
-					success: true,
-					data: {
-						message: "Code running by Online Judge, Check Status",
-					},
-				});
-			}
 		}
 	} catch (error) {
-		console.log((error as Error).message);
-		return res.json(400).json({ success: false, error: "Code not found" });
+		console.error(error);
+		return res
+			.status(400)
+			.json({ success: false, error: "An unexpected error occurred" });
 	}
 });
-
 // check_status
 app.post("/status/:code_id", async (req, res) => {
 	const { code_id } = req?.params;
 	if (!code_id) {
 		return res
-			.json(400)
+			.status(400)
 			.json({ success: false, error: "code_id not valid" });
 	}
 
@@ -130,6 +139,15 @@ app.post("/status/:code_id", async (req, res) => {
 				id: code_id,
 			},
 		});
+
+		if (!submission?.submission_id) {
+			return res
+				.status(400)
+				.json({
+					success: false,
+					error: "Try again later, online judge are busy",
+				});
+		}
 
 		const response = await axios.get(
 			`${process.env.ONLINE_JUDGE_URL}/submissions/${submission?.submission_id}`,
@@ -143,11 +161,10 @@ app.post("/status/:code_id", async (req, res) => {
 			return res.status(200).json({ success: true, data: response.data });
 		}
 	} catch (error) {
-		console.log((error as Error).message);
-		return res.status(400).json({
-			success: false,
-			error: (error as Error).message,
-		});
+		console.error(error);
+		return res
+			.status(500)
+			.json({ success: false, error: "An unexpected error occurred" });
 	}
 });
 
