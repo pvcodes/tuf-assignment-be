@@ -14,10 +14,13 @@ datasource db {
 }
 
 model CodeSubmission {
-  id          String      @id
-  username    String
-  language    String
-  sourceCode  String
-  stdInput    String?
-  timestamp   DateTime @default(now())
+  id            String   @id
+  username      String
+  language      String
+  language_id   Int
+  sourceCode    String
+  stdInput      String?
+  submission_id String?
+  stdOutput     String?
+  timestamp     DateTime @default(now())
 }
